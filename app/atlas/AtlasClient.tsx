@@ -6,6 +6,16 @@ import MapCard from "@/components/MapCard";
 import FicheModal from "@/components/FicheModal";
 import { CATEGORIES, CATEGORY_COLORS, CATEGORY_ICONS, FICHES, type Fiche, type Categorie } from "@/lib/fiches-data";
 
+export interface FicheOverrides {
+  titre?: string;
+  messagePrincipal?: string;
+  source?: string;
+  annee?: string;
+  typeRepresentation?: string;
+  logiciel?: string;
+  auteur?: string;
+}
+
 interface MapRecord {
   id: string;
   title: string;
@@ -16,6 +26,7 @@ interface MapRecord {
   published: boolean;
   display_order: number;
   created_at: string;
+  fiche_overrides?: FicheOverrides;
 }
 
 export default function AtlasClient() {
@@ -27,6 +38,21 @@ export default function AtlasClient() {
   const [activeCategory, setActiveCategory] = useState<string>("Toutes");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedMap, setSelectedMap] = useState<{ map: MapRecord; fiche: Fiche } | null>(null);
+
+  // Merge hardcoded fiche data with Supabase overrides (overrides take priority)
+  const mergeFiche = (baseFiche: Fiche, overrides?: FicheOverrides): Fiche => {
+    if (!overrides || Object.keys(overrides).length === 0) return baseFiche;
+    return {
+      ...baseFiche,
+      ...(overrides.titre && { titre: overrides.titre }),
+      ...(overrides.messagePrincipal && { messagePrincipal: overrides.messagePrincipal }),
+      ...(overrides.source && { source: overrides.source }),
+      ...(overrides.annee && { annee: overrides.annee }),
+      ...(overrides.typeRepresentation && { typeRepresentation: overrides.typeRepresentation }),
+      ...(overrides.logiciel && { logiciel: overrides.logiciel }),
+      ...(overrides.auteur && { auteur: overrides.auteur }),
+    };
+  };
 
   useEffect(() => {
     const cat = searchParams.get("cat");
@@ -107,10 +133,6 @@ export default function AtlasClient() {
               </button>
             ))}
           </div>
-
-          <Link href="/admin/login"
-            className="text-xs transition-colors flex-shrink-0 hidden sm:block"
-            style={{ color: "rgba(255,255,255,0.4)" }}>Admin</Link>
         </div>
       </div>
 
@@ -224,8 +246,9 @@ export default function AtlasClient() {
         {!loading && !error && filtered.length > 0 && viewMode === "grid" && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {filtered.map((m, i) => {
-              const fiche = FICHES.find((f) => f.key === m.fiche_key);
-              if (!fiche) return null;
+              const baseFiche = FICHES.find((f) => f.key === m.fiche_key);
+              if (!baseFiche) return null;
+              const fiche = mergeFiche(baseFiche, m.fiche_overrides);
               return (
                 <MapCard
                   key={m.id}
@@ -245,8 +268,9 @@ export default function AtlasClient() {
         {!loading && !error && filtered.length > 0 && viewMode === "list" && (
           <div className="space-y-2">
             {filtered.map((m) => {
-              const fiche = FICHES.find((f) => f.key === m.fiche_key);
-              if (!fiche) return null;
+              const baseFiche = FICHES.find((f) => f.key === m.fiche_key);
+              if (!baseFiche) return null;
+              const fiche = mergeFiche(baseFiche, m.fiche_overrides);
               const color = CATEGORY_COLORS[fiche.categorie] ?? "var(--primary)";
               return (
                 <div key={m.id}

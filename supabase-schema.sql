@@ -48,3 +48,10 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER maps_updated_at
   BEFORE UPDATE ON public.maps
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================================
+-- MIGRATION — Ajout de la colonne fiche_overrides (JSONB)
+-- Exécuter si la table existe déjà sans cette colonne
+-- ============================================================
+ALTER TABLE public.maps
+  ADD COLUMN IF NOT EXISTS fiche_overrides JSONB DEFAULT '{}';

@@ -5,6 +5,16 @@ import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { FICHES, CATEGORIES, CATEGORY_COLORS, CATEGORY_ICONS } from "@/lib/fiches-data";
 
+interface FicheOverrides {
+  titre?: string;
+  messagePrincipal?: string;
+  source?: string;
+  annee?: string;
+  typeRepresentation?: string;
+  logiciel?: string;
+  auteur?: string;
+}
+
 interface MapRecord {
   id: string;
   title: string;
@@ -15,6 +25,7 @@ interface MapRecord {
   published: boolean;
   display_order: number;
   created_at: string;
+  fiche_overrides?: FicheOverrides;
 }
 
 type Tab = "maps" | "upload";
@@ -38,6 +49,54 @@ export default function DashboardPage() {
   const [filterCat, setFilterCat] = useState("Toutes");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Edit modal state
+  const [editMap, setEditMap] = useState<MapRecord | null>(null);
+  const [editFields, setEditFields] = useState<FicheOverrides & { title?: string }>({});
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const openEditModal = (map: MapRecord) => {
+    const baseFiche = FICHES.find((f) => f.key === map.fiche_key);
+    const overrides = map.fiche_overrides ?? {};
+    setEditFields({
+      title: map.title,
+      titre: overrides.titre ?? baseFiche?.titre ?? "",
+      messagePrincipal: overrides.messagePrincipal ?? baseFiche?.messagePrincipal ?? "",
+      source: overrides.source ?? baseFiche?.source ?? "",
+      annee: overrides.annee ?? baseFiche?.annee ?? "",
+      typeRepresentation: overrides.typeRepresentation ?? baseFiche?.typeRepresentation ?? "",
+      logiciel: overrides.logiciel ?? baseFiche?.logiciel ?? "",
+      auteur: overrides.auteur ?? baseFiche?.auteur ?? "",
+    });
+    setSaveMsg(null);
+    setEditMap(map);
+  };
+
+  const saveEdits = async () => {
+    if (!editMap) return;
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      const { title, ...ficheOverrides } = editFields;
+      const res = await fetch("/api/maps", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editMap.id,
+          title: title ?? editMap.title,
+          fiche_overrides: ficheOverrides,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      setSaveMsg({ type: "success", text: "✅ Modifications enregistrées !" });
+      fetchMaps();
+      setTimeout(() => setEditMap(null), 1200);
+    } catch {
+      setSaveMsg({ type: "error", text: "❌ Erreur lors de la sauvegarde." });
+    }
+    setSaving(false);
+  };
 
   // Auth guard
   useEffect(() => {
@@ -400,7 +459,12 @@ export default function DashboardPage() {
                       </div>
                       <div className="p-3">
                         <p className="font-semibold text-xs leading-snug line-clamp-2 mb-2" style={{ color: "var(--text)" }}>{map.title}</p>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
+                          <button onClick={() => openEditModal(map)}
+                            className="flex-1 py-1.5 rounded-lg text-xs font-medium transition-all"
+                            style={{ background: "#eff6ff", color: "#1d4ed8" }}>
+                            ✏️ Modifier
+                          </button>
                           <button onClick={() => togglePublish(map)}
                             className="flex-1 py-1.5 rounded-lg text-xs font-medium transition-all"
                             style={{ background: map.published ? "#fef3c7" : "#d1fae5", color: map.published ? "#92400e" : "#065f46" }}>
@@ -422,13 +486,89 @@ export default function DashboardPage() {
         )}
       </main>
 
+      {/* ── EDIT MODAL ── */}
+      {editMap && (
+        <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={() => setEditMap(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 rounded-t-2xl" style={{ background: "var(--primary)" }}>
+              <div>
+                <p className="text-white/60 text-xs uppercase tracking-widest">Modifier la fiche</p>
+                <h3 className="text-white font-bold text-base leading-tight mt-0.5 truncate max-w-xs">{editMap.title}</h3>
+              </div>
+              <button onClick={() => setEditMap(null)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-white hover:bg-white/20 text-xl font-bold flex-shrink-0">
+                ×
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {([
+                { key: "title", label: "Titre de la carte (affiché dans l'atlas)", multiline: false },
+                { key: "titre", label: "Titre de la fiche technique", multiline: false },
+                { key: "messagePrincipal", label: "Message principal", multiline: true },
+                { key: "source", label: "Source", multiline: false },
+                { key: "annee", label: "Année", multiline: false },
+                { key: "typeRepresentation", label: "Type de représentation", multiline: false },
+                { key: "logiciel", label: "Logiciel utilisé", multiline: false },
+                { key: "auteur", label: "Auteur", multiline: false },
+              ] as { key: keyof typeof editFields; label: string; multiline: boolean }[]).map(({ key, label, multiline }) => (
+                <div key={key}>
+                  <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--text-muted)" }}>
+                    {label}
+                  </label>
+                  {multiline ? (
+                    <textarea
+                      rows={3}
+                      value={editFields[key] ?? ""}
+                      onChange={(e) => setEditFields((prev) => ({ ...prev, [key]: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
+                      style={{ border: "1.5px solid var(--border)", background: "var(--bg)" }}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={editFields[key] ?? ""}
+                      onChange={(e) => setEditFields((prev) => ({ ...prev, [key]: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+                      style={{ border: "1.5px solid var(--border)", background: "var(--bg)" }}
+                    />
+                  )}
+                </div>
+              ))}
+
+              {saveMsg && (
+                <div className={`rounded-xl p-3 text-sm text-center font-medium ${
+                  saveMsg.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+                }`}>
+                  {saveMsg.text}
+                </div>
+              )}
+
+              <button
+                onClick={saveEdits}
+                disabled={saving}
+                className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2"
+                style={{ background: "var(--primary)" }}
+              >
+                {saving ? (
+                  <><span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Enregistrement...</>
+                ) : "💾 Enregistrer les modifications"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── DELETE CONFIRM MODAL ── */}
       {deleteConfirm && (
         <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl text-center">
             <div className="text-5xl mb-4">🗑️</div>
             <h3 className="font-bold text-lg mb-2" style={{ color: "var(--primary)" }}>Supprimer cette carte ?</h3>
-            <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>Cette action est irréversible. La carte sera supprimée de Supabase (l'image reste sur Cloudinary).</p>
+            <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>Cette action est irréversible. La carte sera supprimée de Supabase (l&apos;image reste sur Cloudinary).</p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-2.5 rounded-xl text-sm font-medium" style={{ background: "var(--bg)", color: "var(--text)" }}>
                 Annuler
