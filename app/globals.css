@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #1a3a5c;
+  --accent: #c8a84b;
+  --accent-light: #e8c96a;
+  --bg: #f4f6fa;
+  --card-bg: #ffffff;
+  --text: #1a1a2e;
+  --text-muted: #6b7280;
+  --border: #e5e7eb;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.map-card { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+.map-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(26,58,92,0.15); }
+
+.modal-overlay { backdrop-filter: blur(8px); background: rgba(0,0,0,0.6); }
+
+.hero-pattern {
+  background-image: radial-gradient(circle at 20% 50%, rgba(200,168,75,0.08) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(26,58,92,0.06) 0%, transparent 50%);
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up { animation: fadeInUp 0.5s ease forwards; }
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
