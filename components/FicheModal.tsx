@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Fiche, CATEGORY_COLORS } from "@/lib/fiches-data";
 
 interface Props {
@@ -9,15 +9,31 @@ interface Props {
 }
 
 export default function FicheModal({ fiche, imageUrl, onClose }: Props) {
+  const [isZoomOpen, setIsZoomOpen] = useState(false);
+  const [zoomScale, setZoomScale] = useState(1);
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const handleKey = (e: KeyboardEvent) => { 
+      if (e.key === "Escape") {
+        if (isZoomOpen) {
+          setIsZoomOpen(false);
+          setZoomScale(1);
+          setImagePosition({ x: 0, y: 0 });
+        } else {
+          onClose();
+        }
+      }
+    };
     document.addEventListener("keydown", handleKey);
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", handleKey);
       document.body.style.overflow = "";
     };
-  }, [onClose]);
+  }, [onClose, isZoomOpen]);
 
   const color = CATEGORY_COLORS[fiche.categorie] ?? "#1a3a5c";
 
@@ -36,6 +52,40 @@ export default function FicheModal({ fiche, imageUrl, onClose }: Props) {
     } catch {
       window.open(imageUrl, '_blank');
     }
+  };
+
+  const handleZoomIn = () => {
+    setZoomScale(prev => Math.min(prev + 0.25, 3));
+  };
+
+  const handleZoomOut = () => {
+    setZoomScale(prev => Math.max(prev - 0.25, 0.5));
+  };
+
+  const handleResetZoom = () => {
+    setZoomScale(1);
+    setImagePosition({ x: 0, y: 0 });
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setDragStart({
+      x: e.clientX - imagePosition.x,
+      y: e.clientY - imagePosition.y
+    });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging) {
+      setImagePosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
   };
 
   return (
@@ -65,15 +115,23 @@ export default function FicheModal({ fiche, imageUrl, onClose }: Props) {
           <div className="lg:w-1/2 p-6 flex items-start justify-center" style={{ background: "#f8f9fb" }}>
             <div className="relative w-full rounded-2xl overflow-hidden shadow-lg group">
               <img src={imageUrl} alt={fiche.titre} className="w-full object-contain max-h-80" />
-              {/* Download overlay */}
-              <button
-                onClick={handleDownload}
-                className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100"
-              >
-                <span className="bg-white rounded-full px-4 py-2 text-sm font-semibold shadow" style={{ color: "var(--primary)" }}>
+              {/* Action buttons overlay */}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 gap-2">
+                <button
+                  onClick={handleDownload}
+                  className="bg-white rounded-full px-3 py-1.5 text-xs font-semibold shadow hover:scale-105 transition-transform"
+                  style={{ color: "var(--primary)" }}
+                >
                   ⬇ Télécharger
-                </span>
-              </button>
+                </button>
+                <button
+                  onClick={() => setIsZoomOpen(true)}
+                  className="bg-white rounded-full px-3 py-1.5 text-xs font-semibold shadow hover:scale-105 transition-transform"
+                  style={{ color: color }}
+                >
+                  🔍 Zoom
+                </button>
+              </div>
             </div>
           </div>
 
@@ -145,6 +203,84 @@ export default function FicheModal({ fiche, imageUrl, onClose }: Props) {
           </button>
         </div>
       </div>
+
+      {/* Zoom Modal */}
+      {isZoomOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/95 flex flex-col" onClick={() => setIsZoomOpen(false)}>
+          {/* Zoom controls header */}
+          <div className="flex items-center justify-between p-4 bg-black/50" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleZoomOut}
+                className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors"
+                disabled={zoomScale <= 0.5}
+              >
+                −
+              </button>
+              <span className="text-white text-sm font-medium min-w-[3rem] text-center">
+                {Math.round(zoomScale * 100)}%
+              </span>
+              <button
+                onClick={handleZoomIn}
+                className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors"
+                disabled={zoomScale >= 3}
+              >
+                +
+              </button>
+              <button
+                onClick={handleResetZoom}
+                className="px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white text-xs font-medium transition-colors"
+              >
+                Reset
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDownload}
+                className="px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white text-xs font-medium transition-colors"
+              >
+                ⬇ Télécharger
+              </button>
+              <button
+                onClick={() => setIsZoomOpen(false)}
+                className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors text-xl"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+
+          {/* Zoomable image container */}
+          <div 
+            className="flex-1 relative overflow-hidden cursor-move"
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="absolute inset-0 flex items-center justify-center">
+              <img
+                src={imageUrl}
+                alt={fiche.titre}
+                className="max-w-full max-h-full object-contain select-none transition-transform duration-200"
+                style={{
+                  transform: `scale(${zoomScale}) translate(${imagePosition.x / zoomScale}px, ${imagePosition.y / zoomScale}px)`,
+                  cursor: isDragging ? 'grabbing' : 'grab'
+                }}
+                draggable={false}
+              />
+            </div>
+          </div>
+
+          {/* Instructions footer */}
+          <div className="p-4 bg-black/50 text-center" onClick={(e) => e.stopPropagation()}>
+            <p className="text-white/60 text-xs">
+              Utilisez les boutons +/- pour zoomer • Cliquez et glissez pour déplacer • Échap pour fermer
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
