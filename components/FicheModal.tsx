@@ -21,6 +21,23 @@ export default function FicheModal({ fiche, imageUrl, onClose }: Props) {
 
   const color = CATEGORY_COLORS[fiche.categorie] ?? "#1a3a5c";
 
+  const handleDownload = async () => {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fiche.titre.replace(/[^a-z0-9]/gi, '_')}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch {
+      window.open(imageUrl, '_blank');
+    }
+  };
+
   return (
     <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
@@ -35,6 +52,7 @@ export default function FicheModal({ fiche, imageUrl, onClose }: Props) {
             <div>
               <p className="text-white/70 text-xs uppercase tracking-widest font-medium">{fiche.categorie}</p>
               <h2 className="text-white font-bold text-lg leading-tight max-w-lg">{fiche.titre}</h2>
+              {fiche.sousTitre && <p className="text-white/80 text-sm mt-1 max-w-lg">{fiche.sousTitre}</p>}
             </div>
           </div>
           <button onClick={onClose} className="w-9 h-9 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors text-xl font-bold flex-shrink-0">
@@ -48,17 +66,14 @@ export default function FicheModal({ fiche, imageUrl, onClose }: Props) {
             <div className="relative w-full rounded-2xl overflow-hidden shadow-lg group">
               <img src={imageUrl} alt={fiche.titre} className="w-full object-contain max-h-80" />
               {/* Download overlay */}
-              <a
-                href={imageUrl}
-                download
-                target="_blank"
-                rel="noreferrer"
+              <button
+                onClick={handleDownload}
                 className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100"
               >
                 <span className="bg-white rounded-full px-4 py-2 text-sm font-semibold shadow" style={{ color: "var(--primary)" }}>
                   ⬇ Télécharger
                 </span>
-              </a>
+              </button>
             </div>
           </div>
 
@@ -70,27 +85,64 @@ export default function FicheModal({ fiche, imageUrl, onClose }: Props) {
               <p className="text-sm leading-relaxed" style={{ color: "var(--text)" }}>{fiche.messagePrincipal}</p>
             </div>
 
-            {/* Metadata grid */}
+            {/* Essential info grid */}
             <div className="grid grid-cols-2 gap-3">
+              <InfoItem label="Thème" value={fiche.theme} fullWidth />
+              {fiche.sousTheme && <InfoItem label="Sous-thème" value={fiche.sousTheme} fullWidth />}
               <InfoItem label="Source" value={fiche.source} />
               <InfoItem label="Année" value={fiche.annee} />
-              <InfoItem label="Type de carte" value={fiche.typeRepresentation} fullWidth />
-              {fiche.variables && <InfoItem label="Variables" value={fiche.variables} fullWidth />}
-              {fiche.methodologie && <InfoItem label="Méthode" value={fiche.methodologie} fullWidth />}
               {fiche.logiciel && <InfoItem label="Logiciel" value={fiche.logiciel} />}
-              {fiche.auteur && <InfoItem label="Auteur" value={fiche.auteur} />}
+              <InfoItem label="Type de carte" value={fiche.typeRepresentation} fullWidth />
+              {fiche.variableRepresentee && <InfoItem label="Variable représentée" value={fiche.variableRepresentee} fullWidth />}
             </div>
+
+            {/* Construction de l'indice */}
+            {fiche.constructionIndice && (
+              <div className="rounded-2xl p-4" style={{ background: "#f8f9fa", borderLeft: `3px solid ${color}` }}>
+                <p className="text-xs uppercase tracking-widest font-semibold mb-2" style={{ color }}>🔧 Construction de l'indice</p>
+                <p className="text-xs leading-relaxed" style={{ color: "var(--text)" }}>{fiche.constructionIndice}</p>
+                {fiche.formule && (
+                  <div className="mt-2 p-2 rounded-lg bg-white/70 font-mono text-xs" style={{ color: color }}>
+                    {fiche.formule}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Classes */}
+            {fiche.classesValeurs && (
+              <div className="rounded-2xl p-3" style={{ background: "#f0f8ff" }}>
+                <p className="text-xs uppercase tracking-widest font-semibold mb-2" style={{ color: color }}>📊 Classes</p>
+                <p className="text-xs leading-relaxed" style={{ color: "var(--text)" }}>{fiche.classesValeurs}</p>
+              </div>
+            )}
+
+            {/* Statistiques */}
+            {fiche.statsDescriptives && (
+              <div className="rounded-2xl p-3" style={{ background: "#f0fff4" }}>
+                <p className="text-xs uppercase tracking-widest font-semibold mb-2" style={{ color: color }}>📈 Statistiques clés</p>
+                <p className="text-xs leading-relaxed" style={{ color: "var(--text)" }}>{fiche.statsDescriptives}</p>
+              </div>
+            )}
+
+            {/* Limites */}
+            {fiche.limites && (
+              <div className="rounded-2xl p-3" style={{ background: "#fafafa", border: "1px solid #e0e0e0" }}>
+                <p className="text-xs uppercase tracking-widest font-semibold mb-2" style={{ color: "#666" }}>⚠️ Limites</p>
+                <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>{fiche.limites}</p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Footer */}
         <div className="px-8 py-4 flex justify-between items-center rounded-b-3xl" style={{ background: "#f8f9fb", borderTop: "1px solid #e5e7eb" }}>
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>Données : HCP Maroc</span>
-          <a href={imageUrl} download target="_blank" rel="noreferrer"
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>Source : {fiche.source.split('—')[0].trim()}</span>
+          <button onClick={handleDownload}
             className="px-5 py-2 rounded-full text-sm font-semibold text-white transition-all hover:opacity-90"
             style={{ background: color }}>
             ⬇ Télécharger la carte
-          </a>
+          </button>
         </div>
       </div>
     </div>

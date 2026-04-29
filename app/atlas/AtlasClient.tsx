@@ -233,8 +233,9 @@ export default function AtlasClient() {
                 : "Essayez un autre mot-clé ou une autre catégorie."}
             </p>
             {maps.length === 0
-              ? <Link href="/admin/login" className="px-6 py-3 rounded-full text-white font-semibold text-sm"
-                style={{ background: "var(--primary)" }}>Accès Administrateur</Link>
+              ? <button onClick={() => { setSearch(""); setActiveCategory("Toutes"); }}
+                className="px-6 py-3 rounded-full text-white font-semibold text-sm"
+                style={{ background: "var(--primary)" }}>Réinitialiser</button>
               : <button onClick={() => { setSearch(""); setActiveCategory("Toutes"); }}
                 className="px-6 py-3 rounded-full text-white font-semibold text-sm"
                 style={{ background: "var(--primary)" }}>Réinitialiser</button>
